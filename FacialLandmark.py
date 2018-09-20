@@ -23,11 +23,11 @@ def load_data(file_path):
                 continue
             tokens = line.split()
             img_file_name = tokens[0]
-            img_dir_name = img_file_name[0:re.search('\d',img_file_name)-1]
+            img_dir_name = img_file_name[0:re.search('\d',img_file_name).start()-1]
             img_file_path = os.path.join(lfw_dataset_dir, img_dir_name, img_file_name)
             cords = [[], []]
-            cords[0] = np.asarray(tokens[1:5])      # bounding box cords
-            cords[1] = np.asarray(tokens[5:])       # landmark cords
+            cords[0] = np.asarray(tokens[1:5],dtype=np.float32)      # bounding box cords
+            cords[1] = np.asarray(tokens[5:],dtype=np.float32)       # landmark cords
             data_list.append({'file_path': img_file_path, 'cords:': cords})
         return data_list
 
@@ -42,17 +42,25 @@ class LFWDataset(Dataset):
     def __getitem__(self, idx):
         item = self.data_list[idx]
         file_path = item['file_path']
-        bounding_box_cords = item['cords'][0]
+        bounding_box= item['cords'][0]
         label = item['cords'][1]    # TODO normalize
 
         # TODO implement all 3 data augmentation techniques plus original
         if idx < len(self.data_list):           # original
-            img = np.asarray(Image.open(file_path), dtype=np.float32) / 255.0  # TODO rescale to (-1, 1)
-            c, h, w = img.shape[0], img.shape[1], img.shape[2]
-            img_tensor = torch.from_numpy(img)
-            img_tensor = img_tensor.view((1, c, h, w))
-            label_tensor = torch.from_numpy(label).long()  # TODO
-        elif idx < len(self.data_list) * 2:     # cropping
+            img = Image.open(file_path)
+            img = img.crop((bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))  # crop to bonding box
+            img = np.asarray(img, dtype=np.float32)
+            h, w, c = img.shape[0], img.shape[1], img.shape[2]
+            label = label.reshape(7, 2) - np.asarray([bounding_box[0], bounding_box[1]])
+            label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
+
+            img_rescale = img / 255 * 2 - 1
+
+            img_tensor = torch.from_numpy(img_rescale)
+            img_tensor = img_tensor.view(c, h, w)
+            label_tensor = torch.from_numpy(label.flatten())
+
+        elif idx < len(self.data_list) * 2:     # cropping augmentation
             img = np.asarray(Image.open(file_path), dtype=np.float32) / 255.0  # TODO rescale to (-1, 1)
             c, h, w = img.shape[0], img.shape[1], img.shape[2]
             img_tensor = torch.from_numpy(img)
