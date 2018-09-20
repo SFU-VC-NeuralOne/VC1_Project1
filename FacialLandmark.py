@@ -42,8 +42,8 @@ class LFWDataset(Dataset):
     def __getitem__(self, idx):
         item = self.data_list[idx]
         file_path = item['file_path']
-        bounding_box = item['cords'][0]
-        landmarks = item['cords'][1]    # TODO translate landmark cords to label
+        bounding_box_cords = item['cords'][0]
+        label = item['cords'][1]    # TODO normalize
 
         # TODO implement all 3 data augmentation techniques plus original
         if idx < len(self.data_list):           # original
