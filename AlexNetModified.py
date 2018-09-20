@@ -46,7 +46,7 @@ class AlexNetModified(nn.Module):
         return x
 
 
-def LFWNet(pretrained=False, **kwargs):
+def lfw_net(pretrained=False, **kwargs):
     r"""Based on AlexNet model architecture from the
     `"One weird trick..." <https://arxiv.org/abs/1404.5997>`_ paper.
     Args:
@@ -55,4 +55,6 @@ def LFWNet(pretrained=False, **kwargs):
     model = AlexNetModified(**kwargs)
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['alexnet']))
+        # TODO empty the fc layers
     return model
+

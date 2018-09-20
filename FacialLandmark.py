@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from AlexNetModified import LFWNet
+from AlexNetModified import lfw_net
 import os                                       # utility lib. for file path, mkdir
 import random
 from torch.utils.data import Dataset, DataLoader
@@ -37,22 +37,39 @@ class LFWDataset(Dataset):
         self.data_list = data_list
 
     def __len__(self):
-        return len(self.data_list)
+        return len(self.data_list) * 4  # original + cropping + flipping + brightness change
 
     def __getitem__(self, idx):
-        # TODO also add data augmentation, rescale and plotting here
-
         item = self.data_list[idx]
         file_path = item['file_path']
         bounding_box = item['cords'][0]
         landmarks = item['cords'][1]    # TODO translate landmark cords to label
 
-        img = np.asarray(Image.open(file_path), dtype=np.float32) / 255.0   # TODO rescale to (-1, 1)
-        c, h, w = img.shape[0], img.shape[1], img.shape[2]
-        img_tensor = torch.from_numpy(img)
-        img_tensor = img_tensor.view((1, c, h, w))
-        label_tensor = torch.from_numpy(label).long()  # TODO
-
+        # TODO implement all 3 data augmentation techniques plus original
+        if idx < len(self.data_list):           # original
+            img = np.asarray(Image.open(file_path), dtype=np.float32) / 255.0  # TODO rescale to (-1, 1)
+            c, h, w = img.shape[0], img.shape[1], img.shape[2]
+            img_tensor = torch.from_numpy(img)
+            img_tensor = img_tensor.view((1, c, h, w))
+            label_tensor = torch.from_numpy(label).long()  # TODO
+        elif idx < len(self.data_list) * 2:     # cropping
+            img = np.asarray(Image.open(file_path), dtype=np.float32) / 255.0  # TODO rescale to (-1, 1)
+            c, h, w = img.shape[0], img.shape[1], img.shape[2]
+            img_tensor = torch.from_numpy(img)
+            img_tensor = img_tensor.view((1, c, h, w))
+            label_tensor = torch.from_numpy(label).long()  # TODO
+        elif idx < len(self.data_list) * 3:     # flipping
+            img = np.asarray(Image.open(file_path), dtype=np.float32) / 255.0  # TODO rescale to (-1, 1)
+            c, h, w = img.shape[0], img.shape[1], img.shape[2]
+            img_tensor = torch.from_numpy(img)
+            img_tensor = img_tensor.view((1, c, h, w))
+            label_tensor = torch.from_numpy(label).long()  # TODO
+        else:                                   # brightness change
+            img = np.asarray(Image.open(file_path), dtype=np.float32) / 255.0  # TODO rescale to (-1, 1)
+            c, h, w = img.shape[0], img.shape[1], img.shape[2]
+            img_tensor = torch.from_numpy(img)
+            img_tensor = img_tensor.view((1, c, h, w))
+            label_tensor = torch.from_numpy(label).long()  # TODO
         return img_tensor, label_tensor
 
 
@@ -102,7 +119,7 @@ def train(net, train_data_loader, validation_data_loader):
                     valid_loss = criterion(valid_out, valid_label)
                     valid_loss_set.append(valid_loss.item())
 
-                    # TODO how many data should we put into validation?
+                    # TODO how many data should we put into validation? also current implementation always only validates first 5 elements
                     valid_itr += 1
                     if valid_itr > 5:
                         break
@@ -162,23 +179,23 @@ def main():
     print('Total training items', len(train_dataset), ', Total training mini-batches in one epoch:',
           len(train_data_loader))
 
-    validation_set = LFWDataset(validation_set_list)
-    validation_data_loader = torch.utils.data.DataLoader(validation_set,
-                                                    batch_size=32,
-                                                    shuffle=True,
-                                                    num_workers=6)
-    print('Total validation set:', len(validation_set))
+    validation_dataset = LFWDataset(validation_set_list)
+    validation_data_loader = torch.utils.data.DataLoader(validation_dataset,
+                                                         batch_size=32,
+                                                         shuffle=True,
+                                                         num_workers=6)
+    print('Total validation items:', len(validation_dataset))
 
     # TODO optional: visualize some data
 
     # Train
-    net = LFWNet()
+    net = lfw_net(pretrained=True)
     train(net, train_data_loader, validation_data_loader)
     net_state = net.state_dict()  # serialize trained model
     torch.save(net_state, os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
 
     # Test
-    test_net = LFWNet()
+    test_net = lfw_net()
     test_net_state = torch.load(os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
     test_net.load_state_dict(test_net_state)
 
