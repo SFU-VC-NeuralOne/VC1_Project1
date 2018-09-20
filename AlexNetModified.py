@@ -29,7 +29,7 @@ class AlexNetModified(nn.Module):
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2),
         )
-        self.classifier = nn.Sequential(
+        self.classifier_modified = nn.Sequential(
             nn.Dropout(),
             nn.Linear(256 * 6 * 6, 4096),
             nn.ReLU(inplace=True),
@@ -42,19 +42,23 @@ class AlexNetModified(nn.Module):
     def forward(self, x):
         x = self.features(x)
         x = x.view(x.size(0), 256 * 6 * 6)
-        x = self.classifier(x)
+        x = self.classifier_modified(x)
         return x
 
 
-def lfw_net(pretrained=False, **kwargs):
+def lfw_net(load_alex_net=True, **kwargs):
     r"""Based on AlexNet model architecture from the
     `"One weird trick..." <https://arxiv.org/abs/1404.5997>`_ paper.
     Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        load_alex_net (bool): If True, returns a model pre-trained on ImageNet up to the layer before fc
     """
     model = AlexNetModified(**kwargs)
-    if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['alexnet']))
-        # TODO empty the fc layers
+    if load_alex_net:
+        cur_dict = model.state_dict()
+        alex_net_dict = model_zoo.load_url(model_urls['alexnet'])
+        input_state = {k: v for k, v in alex_net_dict.items() if
+                       k in cur_dict and v.size() == cur_dict[k].size()}
+        cur_dict.update(input_state)
+        model.load_state_dict(cur_dict)
     return model
 
