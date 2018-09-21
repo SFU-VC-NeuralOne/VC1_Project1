@@ -4,7 +4,7 @@ from AlexNetModified import lfw_net
 import os                                       # utility lib. for file path, mkdir
 import random
 from torch.utils.data import Dataset, DataLoader
-from PIL import Image
+from PIL import Image, ImageEnhance
 from torch.autograd import Variable
 import matplotlib.pyplot as plt
 import re
@@ -22,13 +22,15 @@ def load_data(file_path):
             if line.startswith('#'):
                 continue
             tokens = line.split()
+            if len(tokens) == 0:
+                continue
             img_file_name = tokens[0]
-            img_dir_name = img_file_name[0:re.search('\d',img_file_name).start()-1]
+            img_dir_name = img_file_name[0:re.search('\d',img_file_name).start() - 1]
             img_file_path = os.path.join(lfw_dataset_dir, img_dir_name, img_file_name)
             cords = [[], []]
-            cords[0] = np.asarray(tokens[1:5],dtype=np.float32)      # bounding box cords
-            cords[1] = np.asarray(tokens[5:],dtype=np.float32)       # landmark cords
-            data_list.append({'file_path': img_file_path, 'cords:': cords})
+            cords[0] = np.asarray(tokens[1:5], dtype=np.float32)      # bounding box cords
+            cords[1] = np.asarray(tokens[5:], dtype=np.float32)       # landmark cords
+            data_list.append({'file_path': img_file_path, 'cords': cords})
         return data_list
 
 
@@ -37,47 +39,70 @@ class LFWDataset(Dataset):
         self.data_list = data_list
 
     def __len__(self):
-        return len(self.data_list) * 4  # original + cropping + flipping + brightness change
+        return len(self.data_list) * 4  # original + random cropping + flipping + brightness change
 
     def __getitem__(self, idx):
-        item = self.data_list[idx]
+        length = len(self.data_list)
+        item = self.data_list[idx % length]
         file_path = item['file_path']
-        bounding_box= item['cords'][0]
-        label = item['cords'][1]    # TODO normalize
+        bounding_box = item['cords'][0]
+        label = item['cords'][1]
 
-        # TODO implement all 3 data augmentation techniques plus original
-        if idx < len(self.data_list):           # original
-            img = Image.open(file_path)
-            img = img.crop((bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))  # crop to bonding box
-            img = np.asarray(img, dtype=np.float32)
-            h, w, c = img.shape[0], img.shape[1], img.shape[2]
-            label = label.reshape(7, 2) - np.asarray([bounding_box[0], bounding_box[1]])
-            label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
+        random_cropping = length <= idx < length * 2
+        horizontal_flipping = length * 2 <= idx < length * 3
+        adjust_brightness = length * 3 <= idx < length * 4
 
-            img_rescale = img / 255 * 2 - 1
+        img = Image.open(file_path)
 
-            img_tensor = torch.from_numpy(img_rescale)
-            img_tensor = img_tensor.view(c, h, w)
-            label_tensor = torch.from_numpy(label.flatten())
+        if random_cropping:
+            bounding_box_w = bounding_box[2] - bounding_box[0]
+            bounding_box_h = bounding_box[3] - bounding_box[1]
+            offsets = [random.random() / 10 * bounding_box_w, random.random() / 10 * bounding_box_h,
+                       - random.random() / 10 * bounding_box_w, - random.random() / 10 * bounding_box_h]
+            bounding_box = bounding_box + offsets
 
-        elif idx < len(self.data_list) * 2:     # cropping augmentation
-            img = np.asarray(Image.open(file_path), dtype=np.float32) / 255.0  # TODO rescale to (-1, 1)
-            c, h, w = img.shape[0], img.shape[1], img.shape[2]
-            img_tensor = torch.from_numpy(img)
-            img_tensor = img_tensor.view((1, c, h, w))
-            label_tensor = torch.from_numpy(label).long()  # TODO
-        elif idx < len(self.data_list) * 3:     # flipping
-            img = np.asarray(Image.open(file_path), dtype=np.float32) / 255.0  # TODO rescale to (-1, 1)
-            c, h, w = img.shape[0], img.shape[1], img.shape[2]
-            img_tensor = torch.from_numpy(img)
-            img_tensor = img_tensor.view((1, c, h, w))
-            label_tensor = torch.from_numpy(label).long()  # TODO
-        else:                                   # brightness change
-            img = np.asarray(Image.open(file_path), dtype=np.float32) / 255.0  # TODO rescale to (-1, 1)
-            c, h, w = img.shape[0], img.shape[1], img.shape[2]
-            img_tensor = torch.from_numpy(img)
-            img_tensor = img_tensor.view((1, c, h, w))
-            label_tensor = torch.from_numpy(label).long()  # TODO
+        # crop to bounding box
+        img = img.crop((bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))
+
+        # label consists of 7 cords; normalize the values to [0, 1]
+        # [0,0]canthus_rr_x     [0,1]canthus_rr_y
+        # [1,0]canthus_rl_x     [1,1]canthus_rl_y
+        # [2,0]canthus_lr_x     [2,1]canthus_lr_y
+        # [3,0]canthus_ll_x     [3,1]canthus_ll_y
+        # [4,0]mouth_corner_r_x [4,1]mouth_corner_r_y
+        # [5,0]mouth_corner_l_x [5,1]mouth_corner_l_y
+        # [6,0]nose_x           [6,1]nose_y
+        label = label.reshape(7, 2) - np.asarray([bounding_box[0], bounding_box[1]])
+        label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
+
+        if horizontal_flipping:
+            img = img.transpose(Image.FLIP_LEFT_RIGHT)
+            label = 1 - label
+            print(label)
+            # swap the following cords:
+            # canthus_rr with canthus_ll
+            # canthus_rl with canthus_lr
+            # mouth_corner_r with mouth_corner_l
+            label[0, :], label[3, :] = label[3, :], label[0, :].copy()
+            label[1, :], label[2, :] = label[2, :], label[1, :].copy()
+            label[4, :], label[5, :] = label[5, :], label[4, :].copy()
+
+        if adjust_brightness:
+            # original brightness level is 1.0
+            lowest_brightness = 0.2
+            highest_brightness = 2.0
+            img = ImageEnhance.Brightness(img).enhance(random.randint(lowest_brightness * 10,
+                                                                      highest_brightness * 10) / 10.0)
+
+        # resize and normalize pixel values to [-1, 1]
+        img = img.resize((225, 225))
+        img = np.asarray(img, dtype=np.float32)
+        img = img / 255 * 2 - 1
+
+        h, w, c = img.shape[0], img.shape[1], img.shape[2]
+        img_tensor = torch.from_numpy(img)
+        img_tensor = img_tensor.view(c, h, w)
+        label_tensor = torch.from_numpy(label.ravel())
         return img_tensor, label_tensor
 
 
@@ -147,7 +172,7 @@ def train(net, train_data_loader, validation_data_loader):
     plt.show()
 
 
-def test(net, test_set_list):
+def run_test(net, test_set_list):
     net.cuda()
     net.eval()
     test_item = random.choice(test_set_list)
@@ -194,10 +219,8 @@ def main():
                                                          num_workers=6)
     print('Total validation items:', len(validation_dataset))
 
-    # TODO optional: visualize some data
-
     # Train
-    net = lfw_net(pretrained=True)
+    net = lfw_net()
     train(net, train_data_loader, validation_data_loader)
     net_state = net.state_dict()  # serialize trained model
     torch.save(net_state, os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
@@ -207,8 +230,7 @@ def main():
     test_net_state = torch.load(os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
     test_net.load_state_dict(test_net_state)
 
-    # TODO allow keyboard input to trigger test()
-    test(test_net, test_set_list)
+    run_test(test_net, test_set_list)
 
 
 if __name__ == '__main__':
