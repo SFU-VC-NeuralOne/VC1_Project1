@@ -109,10 +109,10 @@ class LFWDataset(Dataset):
         alexnet_input_size = 225
         img = img.resize((alexnet_input_size, alexnet_input_size))
 
-        plt.imshow(img)
-        plt.plot(label[:, 0] * alexnet_input_size, label[:, 1] * alexnet_input_size, color='green', marker='o',
-                 linestyle='none', markersize=12)
-        plt.show()
+        # plt.imshow(img)
+        # plt.plot(label[:, 0] * alexnet_input_size, label[:, 1] * alexnet_input_size, color='green', marker='o',
+        #          linestyle='none', markersize=12)
+        # plt.show()
 
         img = np.asarray(img, dtype=np.double)
         img = img / 255 * 2 - 1
@@ -132,7 +132,7 @@ def train(net, train_data_loader, validation_data_loader):
     train_losses = []
     valid_losses = []
 
-    max_epochs = 2
+    max_epochs = 6
     itr = 0
 
     for epoch_idx in range(0, max_epochs):
