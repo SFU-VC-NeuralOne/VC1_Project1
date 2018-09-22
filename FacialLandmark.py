@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torchvision.transforms as tt
 from AlexNetModified import lfw_net
 import os
 import random
@@ -7,13 +8,15 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image, ImageEnhance
 from torch.autograd import Variable
 import matplotlib.pyplot as plt
+import matplotlib.cm
 import re
 
 lfw_dataset_dir = 'lfw'
 anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_train.txt')
 anno_test_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_test.txt')
 train_learning_rate = 0.01
-training_needed = True
+training_mode = False
+alexnet_input_size = 225
 
 
 def load_data(file_path):
@@ -41,7 +44,7 @@ class LFWDataset(Dataset):
         self.augment_data = augment_data
 
     def __len__(self):
-        return len(self.data_list) * 3 if self.augment_data else len(self.data_list)
+        return len(self.data_list) * 4 if self.augment_data else len(self.data_list)
 
     def __getitem__(self, idx):
         length = len(self.data_list)
@@ -106,21 +109,33 @@ class LFWDataset(Dataset):
             img = ImageEnhance.Brightness(img).enhance(new_brightness)
 
         # resize and normalize pixel values to [-1, 1]
-        alexnet_input_size = 225
         img = img.resize((alexnet_input_size, alexnet_input_size))
 
         # plt.imshow(img)
-        # plt.plot(label[:, 0] * alexnet_input_size, label[:, 1] * alexnet_input_size, color='green', marker='o',
-        #          linestyle='none', markersize=12)
+        # labels = ['canthus_rr', 'canthus_rl', 'canthus_lr', 'canthus_ll', 'mouth_corner_r', 'mouth_corner_l', 'nose']
+        # colors = ['b', 'g', 'r', 'c', 'm', 'y', 'w']
+        # for i in range(len(labels)):
+        #     plt.plot(label[i, 0] * alexnet_input_size, label[i, 1] * alexnet_input_size, color=colors[i], marker='o',
+        #              linestyle='none', markersize=12, label=labels[i])
+        # plt.title('img test')
+        # plt.legend()
         # plt.show()
 
         img = np.asarray(img, dtype=np.double)
-        img = img / 255 * 2 - 1
+        img = img / 255.0 * 2 - 1
 
         h, w, c = img.shape[0], img.shape[1], img.shape[2]
         img_tensor = torch.from_numpy(img)
         img_tensor = img_tensor.view(c, h, w)
         label_tensor = torch.from_numpy(label.ravel())
+
+        # z, x, y = img_tensor.shape[0], img_tensor.shape[1], img_tensor.shape[2]
+        # img_tensor = img_tensor.view(x, y, z)
+        # img = img_tensor.cpu().numpy()
+        # img = (img + 1) / 2
+        # plt.imshow(img, cmap='brg')
+        # plt.show()
+
         return img_tensor, label_tensor
 
 
@@ -150,14 +165,11 @@ def train(net, train_data_loader, validation_data_loader):
             optimizer.step()
             train_losses.append((itr, loss.item()))
 
-            if itr % 40 == 0:
-                print('Epoch: %d Itr: %d Loss: %f' % (epoch_idx, itr, loss.item()))
-
             # Run validation every 200 iterations:
             if itr % 200 == 0:
+                print('Epoch: %d Itr: %d Loss: %f' % (epoch_idx, itr, loss.item()))
                 net.eval()
                 valid_loss_set = []
-                valid_itr = 0
 
                 for valid_batch_idx, (valid_input, valid_label) in enumerate(validation_data_loader):
                     valid_input = Variable(valid_input.cuda())
@@ -166,9 +178,7 @@ def train(net, train_data_loader, validation_data_loader):
                     valid_label = Variable(valid_label.cuda())
                     valid_loss = criterion(valid_out, valid_label)
                     valid_loss_set.append(valid_loss.item())
-                    valid_itr += 1
 
-                # Compute the avg. validation loss
                 avg_valid_loss = np.mean(np.asarray(valid_loss_set))
                 print('Valid Epoch: %d Itr: %d Loss: %f' % (epoch_idx, itr, avg_valid_loss))
                 valid_losses.append((itr, avg_valid_loss))
@@ -181,88 +191,116 @@ def train(net, train_data_loader, validation_data_loader):
     plt.plot(valid_losses[:, 0],  # iteration
              valid_losses[:, 1])  # loss value
     plt.show()
-    plt.gcf().clear()
 
 
-def run_test_set(net, test_set_list):
+def run_test_set(net, test_data_loader):
     net.cuda()
     net.eval()
-    test_item = random.choice(test_set_list)
-    test_img_path = os.path.join(lfw_dataset_dir, test_item['file_path'])
-    img = np.asarray(Image.open(test_img_path), dtype=np.double) / 255.0   # TODO rescale to (-1, 1)
-    c, h, w = img.shape[0], img.shape[1], img.shape[2]
-    img_tensor = torch.from_numpy(img)
-    img_tensor = img_tensor.view((1, c, h, w))
+    criterion = torch.nn.MSELoss()
+    distances = []
+    itr = 0
 
-    prediction = net.forward(img_tensor.cuda())
-    prob_max = torch.argmax(prediction.detach(), dim=1)
+    for idx, (test_input, label) in enumerate(test_data_loader):
+        itr += 1
+        test_input = Variable(test_input.cuda())
+        test_output = net.forward(test_input)
+        loss = criterion(test_output, Variable(label.cuda()))
 
-    # Show the result TODO plot the landmarks
-    plt.imshow(img)
-    plt.title("Label %d" % (prob_max.item()))
+        if itr % 200 == 0:
+            print('Itr: %d Loss: %f' % (itr, loss.item()))
+
+        label_np = label.numpy().reshape(7, 2)
+        output_np = test_output.detach().cpu().numpy().reshape(7, 2)
+        distances.append(np.linalg.norm(output_np - label_np, axis=1))
+
+    distances = np.asarray(distances)
+    plt.xlabel('Radius')
+    plt.ylabel('Detected Ratio %')
+    plt.title("Avg. Percentage of Detected Key-points")
+    for i in range(1500):
+        radius = i / 1000.0
+        accuracy = (distances < radius).sum() / np.size(distances)
+        plt.plot(radius, accuracy * 100, color='red', marker='o', markersize=2)
     plt.show()
 
 
-def run_random_test(net, test_set_list):
+def run_one_test(net, test_data_loader):
     net.cuda()
     net.eval()
-    test_item = random.choice(test_set_list)
-    test_img_path = os.path.join(lfw_dataset_dir, test_item['file_path'])
-    img = np.asarray(Image.open(test_img_path), dtype=np.double) / 255.0   # TODO rescale to (-1, 1)
-    c, h, w = img.shape[0], img.shape[1], img.shape[2]
-    img_tensor = torch.from_numpy(img)
-    img_tensor = img_tensor.view((1, c, h, w))
 
-    prediction = net.forward(img_tensor.cuda())
-    prob_max = torch.argmax(prediction.detach(), dim=1)
+    idx, (image, label) = next(enumerate(test_data_loader))
+    test_output = net.forward(image.cuda())
 
-    # Show the result TODO plot the landmarks
-    plt.imshow(img)
-    plt.title("Label %d" % (prob_max.item()))
+    label = label.cpu().numpy().reshape(7, 2)
+    test_output = test_output.detach().cpu().numpy().reshape(7, 2)
+
+    print(label)
+    print(test_output)
+
+    n, c, h, w = image.shape[0], image.shape[1], image.shape[2], image.shape[3]
+    image = image.view(h, w, c)
+    image = image.cpu().numpy()
+    image = (image + 1) / 2
+    plt.imshow(image, cmap='brg')
+
+    plt.plot(label[:, 0] * alexnet_input_size, label[:, 1] * alexnet_input_size, color='green', marker='o',
+             linestyle='none', markersize=12, label='Label')
+    plt.plot(test_output[:, 0] * alexnet_input_size, test_output[:, 1] * alexnet_input_size, color='blue', marker='o',
+             linestyle='none', markersize=12, label='Predicted')
+    plt.legend()
     plt.show()
 
 
 def main():
     torch.set_default_tensor_type('torch.cuda.DoubleTensor')
-    data_list = load_data(anno_train_file_path)
-    random.shuffle(data_list)
-    num_total_items = len(data_list)
 
-    train_set_ratio = 0.8
-    num_train_sets = train_set_ratio * num_total_items
-    train_set_list = data_list[: int(num_train_sets)]
-    validation_set_list = data_list[int(num_train_sets):]
-    test_set_list = load_data(anno_test_file_path)
+    if training_mode:
+        net = lfw_net()
+        data_list = load_data(anno_train_file_path)
+        random.shuffle(data_list)
+        num_total_items = len(data_list)
 
-    # Create dataloaders for training and validation
-    train_dataset = LFWDataset(train_set_list, augment_data=True)
-    train_data_loader = torch.utils.data.DataLoader(train_dataset,
-                                                    batch_size=128,
-                                                    shuffle=True,
-                                                    num_workers=6)
-    print('Total training items', len(train_dataset), ', Total training mini-batches in one epoch:',
-          len(train_data_loader))
+        train_set_ratio = 0.8
+        num_train_sets = train_set_ratio * num_total_items
+        train_set_list = data_list[: int(num_train_sets)]
+        validation_set_list = data_list[int(num_train_sets):]
 
-    validation_dataset = LFWDataset(validation_set_list)
-    validation_data_loader = torch.utils.data.DataLoader(validation_dataset,
-                                                         batch_size=32,
-                                                         shuffle=True,
-                                                         num_workers=6)
-    print('Total validation items:', len(validation_dataset))
+        # Create dataloaders for training and validation
+        train_dataset = LFWDataset(train_set_list, augment_data=True)
+        train_data_loader = torch.utils.data.DataLoader(train_dataset,
+                                                        batch_size=128,
+                                                        shuffle=True,
+                                                        num_workers=6)
+        print('Total training items', len(train_dataset), ', Total training mini-batches in one epoch:',
+              len(train_data_loader))
 
-    # Train
-    net = lfw_net()
-    if training_needed:
+        validation_dataset = LFWDataset(validation_set_list)
+        validation_data_loader = torch.utils.data.DataLoader(validation_dataset,
+                                                             batch_size=32,
+                                                             shuffle=True,
+                                                             num_workers=6)
+        print('Total validation items:', len(validation_dataset))
+
+        # train_dataset.__getitem__(22222)
+
         train(net, train_data_loader, validation_data_loader)
         torch.save(net.state_dict(), os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
+    else:
+        test_net = lfw_net()
+        test_net_state = torch.load(os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
+        test_net.load_state_dict(test_net_state)
 
-    # Test
-    test_net = lfw_net()
-    test_net_state = torch.load(os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
-    test_net.load_state_dict(test_net_state)
+        test_set_list = load_data(anno_test_file_path)
+        test_dataset = LFWDataset(test_set_list)
+        test_data_loader = torch.utils.data.DataLoader(test_dataset,
+                                                       batch_size=1,
+                                                       shuffle=True,
+                                                       num_workers=6)
+        print('Total test items:', len(test_data_loader))
 
-    run_test_set(test_net, test_set_list)
-    run_random_test(test_net, test_set_list)
+        # run_test_set(test_net, test_data_loader)
+        run_one_test(test_net, test_data_loader)
+
 
 if __name__ == '__main__':
     main()
