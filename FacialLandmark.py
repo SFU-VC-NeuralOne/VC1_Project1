@@ -22,17 +22,48 @@ def load_data(file_path):
             if line.startswith('#'):
                 continue
             tokens = line.split()
+            if len(tokens) == 0:
+                continue
             img_file_name = tokens[0]
             img_dir_name = img_file_name[0:re.search('\d',img_file_name).start()-1]
             img_file_path = os.path.join(lfw_dataset_dir, img_dir_name, img_file_name)
             cords = [[], []]
             cords[0] = np.asarray(tokens[1:5],dtype=np.float32)      # bounding box cords
             cords[1] = np.asarray(tokens[5:],dtype=np.float32)       # landmark cords
-            data_list.append({'file_path': img_file_path, 'cords:': cords})
+            data_list.append({'file_path': img_file_path, 'cords': cords})
         return data_list
 
+def calculate_corp(label, h, w):
+    label = label*h
+    pass_signal = False
+
+    while (pass_signal == False):
+        x_min = np.min(label[:, 0])
+        new_bounding_x1 = x_min * np.random.random(1)
+        y_min = np.min(label[:, 1])
+        new_bounding_y1 = y_min * np.random.random(1)
+
+        x_max = np.max(label[:, 0])
+        new_bounding_x2 = (w - x_max) * np.random.random(1) + x_max
+        y_max = np.max(label[:, 1])
+        new_bounding_y2 = (w - y_max) * np.random.random(1) + y_max
+
+        if ((new_bounding_x2-new_bounding_x1)>(new_bounding_y2 - new_bounding_y1)):
+            new_height = new_bounding_x2-new_bounding_x1
+            new_bounding_y2 = new_bounding_y1 + new_height
+        else:
+            new_height = new_bounding_y2 - new_bounding_y1
+            new_bounding_x2 = new_bounding_x1 + new_height
+
+        if ((new_bounding_x2 <= h) & (new_bounding_y2 <= h)):
+            pass_signal = True
+
+    new_bb = [new_bounding_x1[0], new_bounding_y1[0], new_bounding_x2[0], new_bounding_y2[0] ]
+    #return new_bounding_x1, new_bounding_y1, new_bounding_x2, new_bounding_y2
+    return new_bb
 
 class LFWDataset(Dataset):
+
     def __init__(self, data_list):
         self.data_list = data_list
 
@@ -40,28 +71,33 @@ class LFWDataset(Dataset):
         return len(self.data_list) * 4  # original + cropping + flipping + brightness change
 
     def __getitem__(self, idx):
-        item = self.data_list[idx]
+        if idx < len(self.data_list):
+            item = self.data_list[idx]
+        elif idx < len(self.data_list) * 2:
+            item = self.data_list[idx-len(self.data_list)]
+        elif idx < len(self.data_list) * 3:
+            item = self.data_list[idx - (len(self.data_list)*2)]
+        else:
+            item = self.data_list[idx - (len(self.data_list) * 3)]
         file_path = item['file_path']
         bounding_box= item['cords'][0]
         label = item['cords'][1]    # TODO normalize
+        img = Image.open(file_path)
+        img = img.crop((bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))  # crop to bonding box
+        img = np.asarray(img, dtype=np.float32)
+        h, w, c = img.shape[0], img.shape[1], img.shape[2]
+        label = label.reshape(7, 2) - np.asarray([bounding_box[0], bounding_box[1]])
+        label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
+        img_rescale = img / 255 * 2 - 1
 
         # TODO implement all 3 data augmentation techniques plus original
         if idx < len(self.data_list):           # original
-            img = Image.open(file_path)
-            img = img.crop((bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))  # crop to bonding box
-            img = np.asarray(img, dtype=np.float32)
-            h, w, c = img.shape[0], img.shape[1], img.shape[2]
-            label = label.reshape(7, 2) - np.asarray([bounding_box[0], bounding_box[1]])
-            label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
-
-            img_rescale = img / 255 * 2 - 1
-
             img_tensor = torch.from_numpy(img_rescale)
             img_tensor = img_tensor.view(c, h, w)
             label_tensor = torch.from_numpy(label.flatten())
 
         elif idx < len(self.data_list) * 2:     # cropping augmentation
-            img = np.asarray(Image.open(file_path), dtype=np.float32) / 255.0  # TODO rescale to (-1, 1)
+            crop_aug_cords = calculate_corp(label, h, w)
             c, h, w = img.shape[0], img.shape[1], img.shape[2]
             img_tensor = torch.from_numpy(img)
             img_tensor = img_tensor.view((1, c, h, w))
@@ -79,6 +115,8 @@ class LFWDataset(Dataset):
             img_tensor = img_tensor.view((1, c, h, w))
             label_tensor = torch.from_numpy(label).long()  # TODO
         return img_tensor, label_tensor
+
+
 
 
 def train(net, train_data_loader, validation_data_loader):
