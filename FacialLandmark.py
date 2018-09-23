@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import torchvision.transforms as tt
 from AlexNetModified import lfw_net
 import os
 import random
@@ -8,14 +7,14 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image, ImageEnhance
 from torch.autograd import Variable
 import matplotlib.pyplot as plt
-import matplotlib.cm
 import re
 
 lfw_dataset_dir = 'lfw'
 anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_train.txt')
 anno_test_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_test.txt')
-train_learning_rate = 0.01
-training_mode = False
+train_learning_rate = 0.0007
+training_mode = True
+improve_model = False
 alexnet_input_size = 225
 
 
@@ -101,9 +100,9 @@ class LFWDataset(Dataset):
 
         if adjust_brightness:
             orig_brightness = 1.0
-            lowest_brightness = 0.2
-            highest_brightness = 2.0
-            min_diff = 0.3
+            lowest_brightness = 0.4
+            highest_brightness = 1.8
+            min_diff = 0.2
             new_brightness = random.choice([random.randint(lowest_brightness * 10, (orig_brightness - min_diff) * 10) / 10,
                                             random.randint((orig_brightness + min_diff) * 10, highest_brightness * 10) / 10])
             img = ImageEnhance.Brightness(img).enhance(new_brightness)
@@ -147,12 +146,11 @@ def train(net, train_data_loader, validation_data_loader):
     train_losses = []
     valid_losses = []
 
-    max_epochs = 6
+    max_epochs = 4
     itr = 0
 
     for epoch_idx in range(0, max_epochs):
         for train_batch_idx, (train_input, train_label) in enumerate(train_data_loader):
-            itr += 1
             net.train()
             optimizer.zero_grad()
 
@@ -165,9 +163,11 @@ def train(net, train_data_loader, validation_data_loader):
             optimizer.step()
             train_losses.append((itr, loss.item()))
 
-            # Run validation every 200 iterations:
-            if itr % 200 == 0:
+            if itr % 50 == 0:
                 print('Epoch: %d Itr: %d Loss: %f' % (epoch_idx, itr, loss.item()))
+
+            # Run validation every 150 iterations:
+            if itr % 150 == 0:
                 net.eval()
                 valid_loss_set = []
 
@@ -182,6 +182,7 @@ def train(net, train_data_loader, validation_data_loader):
                 avg_valid_loss = np.mean(np.asarray(valid_loss_set))
                 print('Valid Epoch: %d Itr: %d Loss: %f' % (epoch_idx, itr, avg_valid_loss))
                 valid_losses.append((itr, avg_valid_loss))
+            itr += 1
 
     train_losses = np.asarray(train_losses)
     valid_losses = np.asarray(valid_losses)
@@ -256,6 +257,9 @@ def main():
 
     if training_mode:
         net = lfw_net()
+        if improve_model:
+            net_state = torch.load(os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
+            net.load_state_dict(net_state)
         data_list = load_data(anno_train_file_path)
         random.shuffle(data_list)
         num_total_items = len(data_list)
@@ -286,9 +290,10 @@ def main():
         train(net, train_data_loader, validation_data_loader)
         torch.save(net.state_dict(), os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
     else:
-        test_net = lfw_net()
+        test_net = lfw_net(load_alex_net=False)
         test_net_state = torch.load(os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
         test_net.load_state_dict(test_net_state)
+        print(test_net.state_dict())
 
         test_set_list = load_data(anno_test_file_path)
         test_dataset = LFWDataset(test_set_list)
