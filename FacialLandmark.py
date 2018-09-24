@@ -39,26 +39,26 @@ def calculate_corp(label, h, w):
     label = label*h
     pass_signal = False
 
-    while (pass_signal == False):
-        x_min = np.min(label[:, 0])
-        new_bounding_x1 = x_min * np.random.random(1)
-        y_min = np.min(label[:, 1])
-        new_bounding_y1 = y_min * np.random.random(1)
+    # while (pass_signal == False):
+    x_min = np.min(label[:, 0])
+    new_bounding_x1 = x_min * np.random.random(1)
+    y_min = np.min(label[:, 1])
+    new_bounding_y1 = y_min * np.random.random(1)
 
-        x_max = np.max(label[:, 0])
-        new_bounding_x2 = (w - x_max) * np.random.random(1) + x_max
-        y_max = np.max(label[:, 1])
-        new_bounding_y2 = (w - y_max) * np.random.random(1) + y_max
+    x_max = np.max(label[:, 0])
+    new_bounding_x2 = (w - x_max) * np.random.random(1) + x_max
+    y_max = np.max(label[:, 1])
+    new_bounding_y2 = (w - y_max) * np.random.random(1) + y_max
 
-        if ((new_bounding_x2-new_bounding_x1)>(new_bounding_y2 - new_bounding_y1)):
-            new_height = new_bounding_y2 - new_bounding_y1
-            new_bounding_x2 = new_bounding_x1 + new_height
-        else:
-            new_height = new_bounding_x2-new_bounding_x1
-            new_bounding_y2 = new_bounding_y1 + new_height
-
-        if ((new_bounding_x2 <= h) & (new_bounding_y2 <= h)):
-            pass_signal = True
+        # if ((new_bounding_x2-new_bounding_x1)>(new_bounding_y2 - new_bounding_y1)):
+        #     new_height = new_bounding_y2 - new_bounding_y1
+        #     new_bounding_x2 = new_bounding_x1 + new_height
+        # else:
+        #     new_height = new_bounding_x2-new_bounding_x1
+        #     new_bounding_y2 = new_bounding_y1 + new_height
+        #
+        # if ((new_bounding_x2 <= h) & (new_bounding_y2 <= h)):
+        #     pass_signal = True
 
     new_bb = [new_bounding_x1[0], new_bounding_y1[0], new_bounding_x2[0], new_bounding_y2[0] ]
     #return new_bounding_x1, new_bounding_y1, new_bounding_x2, new_bounding_y2
