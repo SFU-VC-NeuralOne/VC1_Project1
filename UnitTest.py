@@ -12,6 +12,9 @@ from PIL import Image, ImageDraw
 import re
 import matplotlib.pyplot as plt
 import FacialLandmark as fl
+from AlexNetModified import lfw_net
+
+
 class TestCropAugmentation(unittest.TestCase):
 
     def test_Crop(self):
@@ -112,6 +115,42 @@ class TestBrightenAugmentation(unittest.TestCase):
         plt.show()
         self.assertEqual('foo'.upper(), 'FOO')
 
+class TestRandomImage(unittest.TestCase):
+
+    def test_RandomImage(self):
+        lfw_dataset_dir = 'lfw'
+        anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_test.txt')
+        data_list = fl.load_data(anno_train_file_path)
+        item = random.choice(data_list)
+
+        file_path = item['file_path']
+        bounding_box = item['cords'][0]
+        label = item['cords'][1]
+
+        img = Image.open(file_path)
+        img = img.crop((bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))  # crop to bonding box
+        img = img.resize((225, 225))  # rezie to alexnet input size
+        img = np.asarray(img, dtype=np.float32)
+
+        h, w, c = img.shape[0], img.shape[1], img.shape[2]
+        img = img / 255 * 2 - 1
+        img_tensor = torch.from_numpy(img)
+        img_tensor = img_tensor.view(1, c, h, w)
+        label_tensor = torch.from_numpy(label.flatten().astype(np.double))
+
+        test_net = lfw_net()
+        test_net_state = torch.load(os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
+        test_net.load_state_dict(test_net_state)
+
+        pred = test_net.forward(img_tensor)
+
+        pred_label = pred.cpu().detach().numpy()
+
+        plt.title(pred )
+        plt.imshow((img + 1) / 2, cmap='brg')
+        plt.plot(pred_label[:, 0] * h, pred_label[:, 1] * h, color='green', marker='o', linestyle='none', markersize=12, label='Label')
+
+        plt.show()
 
 if __name__ == '__main__':
     unittest.main()

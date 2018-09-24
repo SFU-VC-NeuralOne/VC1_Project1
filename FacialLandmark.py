@@ -51,11 +51,11 @@ def calculate_corp(label, h, w):
         new_bounding_y2 = (w - y_max) * np.random.random(1) + y_max
 
         if ((new_bounding_x2-new_bounding_x1)>(new_bounding_y2 - new_bounding_y1)):
-            new_height = new_bounding_x2-new_bounding_x1
-            new_bounding_y2 = new_bounding_y1 + new_height
-        else:
             new_height = new_bounding_y2 - new_bounding_y1
             new_bounding_x2 = new_bounding_x1 + new_height
+        else:
+            new_height = new_bounding_x2-new_bounding_x1
+            new_bounding_y2 = new_bounding_y1 + new_height
 
         if ((new_bounding_x2 <= h) & (new_bounding_y2 <= h)):
             pass_signal = True
