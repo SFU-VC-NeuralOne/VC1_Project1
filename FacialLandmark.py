@@ -14,7 +14,7 @@ import re
 lfw_dataset_dir = 'lfw'
 anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_train.txt')
 anno_test_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_test.txt')
-train_learning_rate = 0.01
+train_learning_rate = 0.001
 alexnet_input_size = 225
 
 def load_data(file_path):
@@ -196,10 +196,10 @@ def train(net, train_data_loader, validation_data_loader):
                     valid_loss = criterion(valid_out, valid_label)
                     valid_loss_set.append(valid_loss.item())
 
-                    # TODO how many data should we put into validation? also current implementation always only validates first 5 elements
-                    valid_itr += 1
-                    if valid_itr > 5:
-                        break
+
+                    # valid_itr += 1
+                    # if valid_itr > 5:
+                    #     break
 
                 # Compute the avg. validation loss
                 avg_valid_loss = np.mean(np.asarray(valid_loss_set))
@@ -252,7 +252,7 @@ def main():
     train_data_loader = torch.utils.data.DataLoader(train_dataset,
                                                     batch_size=128,
                                                     shuffle=True,
-                                                    num_workers=0)
+                                                    num_workers=6)
     print('Total training items', len(train_dataset), ', Total training mini-batches in one epoch:',
           len(train_data_loader))
 
@@ -260,7 +260,7 @@ def main():
     validation_data_loader = torch.utils.data.DataLoader(validation_dataset,
                                                          batch_size=32,
                                                          shuffle=True,
-                                                         num_workers=0)
+                                                         num_workers=6)
     print('Total validation items:', len(validation_dataset))
 
     # TODO optional: visualize some data
