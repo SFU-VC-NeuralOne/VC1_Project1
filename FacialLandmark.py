@@ -13,7 +13,7 @@ lfw_dataset_dir = 'lfw'
 anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_train.txt')
 anno_test_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_test.txt')
 train_learning_rate = 0.000000005
-training_mode = True
+training_mode = False
 improve_model = True
 alexnet_input_size = 225
 
@@ -220,14 +220,14 @@ def run_test_set(net, test_data_loader):
 
         label_np = label.numpy().reshape(7, 2)
         output_np = test_output.detach().cpu().numpy().reshape(7, 2)
-        distances.append(np.linalg.norm(output_np - label_np, axis=1))
+        distances.append(np.linalg.norm(output_np - label_np, axis=1) * alexnet_input_size)
 
     distances = np.asarray(distances)
     plt.xlabel('Radius')
     plt.ylabel('Detected Ratio %')
     plt.title("Avg. Percentage of Detected Key-points")
     for i in range(1500):
-        radius = i / 8000.0
+        radius = i / 30
         accuracy = (distances < radius).sum() / np.size(distances)
         plt.plot(radius, accuracy * 100, color='red', marker='o', markersize=2)
     plt.show()
@@ -296,7 +296,8 @@ def main():
         torch.save(net.state_dict(), os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
     else:
         test_net = lfw_net(load_alex_net=False)
-        test_net_state = torch.load(os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
+        model_path = os.path.join(lfw_dataset_dir, 'lfw_net.pth')
+        test_net_state = torch.load(model_path)
         test_net.load_state_dict(test_net_state)
 
         test_set_list = load_data(anno_test_file_path)
@@ -307,8 +308,8 @@ def main():
                                                        num_workers=6)
         print('Total test items:', len(test_data_loader))
 
-        # run_test_set(test_net, test_data_loader)
-        run_one_test(test_net, test_data_loader)
+        run_test_set(test_net, test_data_loader)
+        # run_one_test(test_net, test_data_loader)
 
 
 if __name__ == '__main__':
