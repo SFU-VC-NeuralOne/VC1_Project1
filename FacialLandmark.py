@@ -65,9 +65,9 @@ def calculate_corp(label, h, w):
     return new_bb
 
 
-def calculate_filp(label, h):
-    label = label * h
-    label[:,0] = h - label[:,0]
+def calculate_filp(label, w):
+    label = label * w
+    label[:,0] = w - label[:,0]
     # swap the following cords:
     # canthus_rr with canthus_ll
     # canthus_rl with canthus_lr
@@ -122,10 +122,11 @@ class LFWDataset(Dataset):
             img = img.crop((bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))
             label = label*h - np.asarray([bounding_box[0], bounding_box[1]])
             label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
+            h, w, c = img.shape[0], img.shape[1], img.shape[2]
 
         if horizontal_flipping:     # flipping
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
-            label = calculate_filp(label, h)
+            label = calculate_filp(label, w)
 
         if adjust_brightness:                                   # brightness change
             brightness = ImageEnhance.Brightness(img)
