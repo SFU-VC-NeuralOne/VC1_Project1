@@ -113,10 +113,9 @@ class LFWDataset(Dataset):
 
         img = img.crop((bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))  # crop to bonding box
         img_array = np.asarray(img, dtype=np.float32)
-        h, w, c = img.shape[0], img_array.shape[1], img_array.shape[2]
+        h, w, c = img_array.shape[0], img_array.shape[1], img_array.shape[2]
         label = label.reshape(7, 2) - np.asarray([bounding_box[0], bounding_box[1]])
         label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
-
 
         if random_cropping:
             bounding_box = calculate_corp(label, h, w)
@@ -132,12 +131,13 @@ class LFWDataset(Dataset):
             brightness = ImageEnhance.Brightness(img)
             img = brightness.enhance(random.uniform(0.5, 1.5)) #brighten the image between 0.5 to 1.5
 
-        img_array = np.asarray(img, dtype=np.float32)
+        img= np.asarray(img, dtype=np.float32)
         h, w, c = img.shape[0], img_array.shape[1], img_array.shape[2]
         img = img / 255 * 2 - 1
 
         img_tensor = torch.from_numpy(img)
         img_tensor = img_tensor.view(c, h, w)
+        print(file_path)
         label_tensor = torch.from_numpy(label.flatten())
 
         return img_tensor, label_tensor
@@ -148,7 +148,7 @@ class LFWDataset(Dataset):
 def train(net, train_data_loader, validation_data_loader):
     net.cuda()
     criterion = torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(net.params(), lr=train_learning_rate)
+    optimizer = torch.optim.Adam(net.parameters(), lr=train_learning_rate)
 
     train_losses = []
     valid_losses = []
