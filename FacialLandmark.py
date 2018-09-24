@@ -120,7 +120,7 @@ class LFWDataset(Dataset):
         if random_cropping:
             bounding_box = calculate_corp(label, h, w)
             img = img.crop((bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))
-            label = label.reshape(7, 2) - np.asarray([bounding_box[0], bounding_box[1]])
+            label = label*h - np.asarray([bounding_box[0], bounding_box[1]])
             label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
 
         if horizontal_flipping:     # flipping
