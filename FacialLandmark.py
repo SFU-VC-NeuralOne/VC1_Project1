@@ -178,11 +178,11 @@ def train(net, train_data_loader, validation_data_loader):
             optimizer.step()
             train_losses.append((itr, loss.item()))
 
-            if train_batch_idx % 50 == 0:
-                print('Epoch: %d Itr: %d Loss: %f' % (epoch_idx, itr, loss.item()))
+            #if train_batch_idx % 50 == 0:
+            print('Epoch: %d Itr: %d Loss: %f' % (epoch_idx, itr, loss.item()))
 
             # Run the validation every 200 iteration:
-            if train_batch_idx % 200 == 0:
+            if train_batch_idx % 50 == 0:
                 net.eval()
                 valid_loss_set = []
                 valid_itr = 0
