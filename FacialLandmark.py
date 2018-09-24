@@ -15,7 +15,7 @@ lfw_dataset_dir = 'lfw'
 anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_train.txt')
 anno_test_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_test.txt')
 train_learning_rate = 0.01
-
+alexnet_input_size = 225
 
 def load_data(file_path):
     data_list = []
@@ -131,18 +131,23 @@ class LFWDataset(Dataset):
             brightness = ImageEnhance.Brightness(img)
             img = brightness.enhance(random.uniform(0.5, 1.5)) #brighten the image between 0.5 to 1.5
 
-        img= np.asarray(img, dtype=np.float32)
-        h, w, c = img.shape[0], img_array.shape[1], img_array.shape[2]
+        img = img.resize((alexnet_input_size, alexnet_input_size))  # rezie to alexnet input size
+        img= np.asarray(img, dtype=np.double)
+
+        h, w, c = img.shape[0], img.shape[1], img.shape[2]
         img = img / 255 * 2 - 1
 
         img_tensor = torch.from_numpy(img)
+        # if(img == None):
+        #     print('file path:',file_path)
+        #     print('h,w,c:', h,w,c)
+        #     print('choice: ',random_cropping, horizontal_flipping, adjust_brightness)
+        #     plt.imshow(img, cmap='brg')
+        #     plt.show()
         img_tensor = img_tensor.view(c, h, w)
-        print(file_path)
-        label_tensor = torch.from_numpy(label.flatten())
+        label_tensor = torch.from_numpy(label.flatten().astype(np.double))
 
         return img_tensor, label_tensor
-
-
 
 
 def train(net, train_data_loader, validation_data_loader):
@@ -173,7 +178,7 @@ def train(net, train_data_loader, validation_data_loader):
             optimizer.step()
             train_losses.append((itr, loss.item()))
 
-            if train_batch_idx % 200 == 0:
+            if train_batch_idx % 50 == 0:
                 print('Epoch: %d Itr: %d Loss: %f' % (epoch_idx, itr, loss.item()))
 
             # Run the validation every 200 iteration:
@@ -231,7 +236,7 @@ def test(net, test_set_list):
 
 
 def main():
-    torch.set_default_tensor_type('torch.cuda.FloatTensor')
+    torch.set_default_tensor_type('torch.cuda.DoubleTensor')
     data_list = load_data(anno_train_file_path)
     random.shuffle(data_list)
     num_total_items = len(data_list)
@@ -247,7 +252,7 @@ def main():
     train_data_loader = torch.utils.data.DataLoader(train_dataset,
                                                     batch_size=128,
                                                     shuffle=True,
-                                                    num_workers=6)
+                                                    num_workers=0)
     print('Total training items', len(train_dataset), ', Total training mini-batches in one epoch:',
           len(train_data_loader))
 
@@ -255,7 +260,7 @@ def main():
     validation_data_loader = torch.utils.data.DataLoader(validation_dataset,
                                                          batch_size=32,
                                                          shuffle=True,
-                                                         num_workers=6)
+                                                         num_workers=0)
     print('Total validation items:', len(validation_dataset))
 
     # TODO optional: visualize some data
