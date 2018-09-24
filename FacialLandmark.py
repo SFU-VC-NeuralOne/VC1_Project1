@@ -12,9 +12,9 @@ import re
 lfw_dataset_dir = 'lfw'
 anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_train.txt')
 anno_test_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_test.txt')
-train_learning_rate = 0.0007
+train_learning_rate = 0.000000005
 training_mode = True
-improve_model = False
+improve_model = True
 alexnet_input_size = 225
 
 
@@ -28,7 +28,7 @@ def load_data(file_path):
             if len(tokens) == 0:
                 continue
             img_file_name = tokens[0]
-            img_dir_name = img_file_name[0:re.search('\d',img_file_name).start() - 1]
+            img_dir_name = img_file_name[0:re.search('\d', img_file_name).start() - 1]
             img_file_path = os.path.join(lfw_dataset_dir, img_dir_name, img_file_name)
             cords = [[], []]
             cords[0] = np.asarray(tokens[1:5], dtype=np.double)      # bounding box cords
@@ -43,7 +43,7 @@ class LFWDataset(Dataset):
         self.augment_data = augment_data
 
     def __len__(self):
-        return len(self.data_list) * 4 if self.augment_data else len(self.data_list)
+        return len(self.data_list) * 5 if self.augment_data else len(self.data_list)
 
     def __getitem__(self, idx):
         length = len(self.data_list)
@@ -66,12 +66,20 @@ class LFWDataset(Dataset):
 
         img = Image.open(file_path)
 
+        label = label.reshape(7, 2)
+
         if random_cropping:
             bounding_box_w = bounding_box[2] - bounding_box[0]
             bounding_box_h = bounding_box[3] - bounding_box[1]
             offsets = [random.random() / 10 * bounding_box_w, random.random() / 10 * bounding_box_h,
                        - random.random() / 10 * bounding_box_w, - random.random() / 10 * bounding_box_h]
             bounding_box = bounding_box + offsets
+            min_label_cords = [np.min(label[:, 0]), np.min(label[:, 1])]
+            max_label_cords = [np.max(label[:, 0]), np.max(label[:, 1])]
+            bounding_box[0] = min(bounding_box[0], min_label_cords[0])
+            bounding_box[1] = min(bounding_box[1], min_label_cords[1])
+            bounding_box[2] = max(bounding_box[2], max_label_cords[0])
+            bounding_box[3] = max(bounding_box[3], max_label_cords[1])
 
         # crop to bounding box
         img = img.crop((bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))
@@ -84,7 +92,7 @@ class LFWDataset(Dataset):
         # [4,0]mouth_corner_r_x [4,1]mouth_corner_r_y
         # [5,0]mouth_corner_l_x [5,1]mouth_corner_l_y
         # [6,0]nose_x           [6,1]nose_y
-        label = label.reshape(7, 2) - np.asarray([bounding_box[0], bounding_box[1]])
+        label = label - np.asarray([bounding_box[0], bounding_box[1]])
         label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
 
         if horizontal_flipping:
@@ -146,7 +154,7 @@ def train(net, train_data_loader, validation_data_loader):
     train_losses = []
     valid_losses = []
 
-    max_epochs = 4
+    max_epochs = 5
     itr = 0
 
     for epoch_idx in range(0, max_epochs):
@@ -219,7 +227,7 @@ def run_test_set(net, test_data_loader):
     plt.ylabel('Detected Ratio %')
     plt.title("Avg. Percentage of Detected Key-points")
     for i in range(1500):
-        radius = i / 1000.0
+        radius = i / 8000.0
         accuracy = (distances < radius).sum() / np.size(distances)
         plt.plot(radius, accuracy * 100, color='red', marker='o', markersize=2)
     plt.show()
@@ -234,9 +242,6 @@ def run_one_test(net, test_data_loader):
 
     label = label.cpu().numpy().reshape(7, 2)
     test_output = test_output.detach().cpu().numpy().reshape(7, 2)
-
-    print(label)
-    print(test_output)
 
     n, c, h, w = image.shape[0], image.shape[1], image.shape[2], image.shape[3]
     image = image.view(h, w, c)
@@ -272,7 +277,7 @@ def main():
         # Create dataloaders for training and validation
         train_dataset = LFWDataset(train_set_list, augment_data=True)
         train_data_loader = torch.utils.data.DataLoader(train_dataset,
-                                                        batch_size=128,
+                                                        batch_size=350,
                                                         shuffle=True,
                                                         num_workers=6)
         print('Total training items', len(train_dataset), ', Total training mini-batches in one epoch:',
@@ -293,7 +298,6 @@ def main():
         test_net = lfw_net(load_alex_net=False)
         test_net_state = torch.load(os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
         test_net.load_state_dict(test_net_state)
-        print(test_net.state_dict())
 
         test_set_list = load_data(anno_test_file_path)
         test_dataset = LFWDataset(test_set_list)
