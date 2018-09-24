@@ -1,5 +1,7 @@
 import numpy as np
 import torch
+from PIL import ImageEnhance
+
 from AlexNetModified import lfw_net
 import os                                       # utility lib. for file path, mkdir
 import random
@@ -114,7 +116,7 @@ class LFWDataset(Dataset):
         h, w, c = img.shape[0], img_array.shape[1], img_array.shape[2]
         label = label.reshape(7, 2) - np.asarray([bounding_box[0], bounding_box[1]])
         label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
-        #img_rescale = img / 255 * 2 - 1
+
 
         if random_cropping:
             bounding_box = calculate_corp(label, h, w)
@@ -125,18 +127,19 @@ class LFWDataset(Dataset):
         if horizontal_flipping:     # flipping
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
             label = calculate_filp(label, h)
-            img = np.asarray(Image.open(file_path), dtype=np.float32) / 255.0  # TODO rescale to (-1, 1)
-            c, h, w = img.shape[0], img.shape[1], img.shape[2]
-            img_tensor = torch.from_numpy(img)
-            img_tensor = img_tensor.view((1, c, h, w))
-            label_tensor = torch.from_numpy(label).long()  # TODO
 
         if adjust_brightness:                                   # brightness change
-            img = np.asarray(Image.open(file_path), dtype=np.float32) / 255.0  # TODO rescale to (-1, 1)
-            c, h, w = img.shape[0], img.shape[1], img.shape[2]
-            img_tensor = torch.from_numpy(img)
-            img_tensor = img_tensor.view((1, c, h, w))
-            label_tensor = torch.from_numpy(label).long()  # TODO
+            brightness = ImageEnhance.Brightness(img)
+            img = brightness.enhance(random.uniform(0.5, 1.5)) #brighten the image between 0.5 to 1.5
+
+        img_array = np.asarray(img, dtype=np.float32)
+        h, w, c = img.shape[0], img_array.shape[1], img_array.shape[2]
+        img = img / 255 * 2 - 1
+
+        img_tensor = torch.from_numpy(img)
+        img_tensor = img_tensor.view(c, h, w)
+        label_tensor = torch.from_numpy(label.flatten())
+
         return img_tensor, label_tensor
 
 
@@ -150,7 +153,7 @@ def train(net, train_data_loader, validation_data_loader):
     train_losses = []
     valid_losses = []
 
-    max_epochs = 6
+    max_epochs = 1
     itr = 0
 
     for epoch_idx in range(0, max_epochs):
@@ -258,7 +261,7 @@ def main():
     # TODO optional: visualize some data
 
     # Train
-    net = lfw_net(pretrained=True)
+    net = lfw_net()
     train(net, train_data_loader, validation_data_loader)
     net_state = net.state_dict()  # serialize trained model
     torch.save(net_state, os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
@@ -269,7 +272,7 @@ def main():
     test_net.load_state_dict(test_net_state)
 
     # TODO allow keyboard input to trigger test()
-    test(test_net, test_set_list)
+    #test(test_net, test_set_list)
 
 
 if __name__ == '__main__':

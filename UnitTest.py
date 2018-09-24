@@ -5,6 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import os
 import random
+
+from PIL import ImageEnhance
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image, ImageDraw
 import re
@@ -68,15 +70,47 @@ class TestFlipAugmentation(unittest.TestCase):
         label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
         img_rescale = img_og / 255 * 2 - 1
 
-        plt.imshow(img, cmap='brg')
+        #plt.imshow(img, cmap='brg')
         plt.imshow(img.transpose(Image.FLIP_LEFT_RIGHT), cmap='brg')
         label = fl.calculate_filp(label, h)
         print(label)
-        plt.plot(label[:, 0] * h, label[:, 1] * h, color='green', marker='o',linestyle='none', markersize=12, label='Label')
-        #plt.plot(label[3, 0] * h, label[3, 1] * h, color='green', marker='o', linestyle='none', markersize=12, label='Label')
+        #plt.plot(label[:, 0] * h, label[:, 1] * h, color='green', marker='o',linestyle='none', markersize=12, label='Label')
+        plt.plot(label[0, 0] * h, label[0, 1] * h, color='green', marker='o', linestyle='none', markersize=12, label='Label')
         plt.show()
         self.assertEqual('foo'.upper(), 'FOO')
 
+class TestBrightenAugmentation(unittest.TestCase):
+
+    def test_Brightening(self):
+        lfw_dataset_dir = 'lfw'
+        anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_train.txt')
+        data_list = fl.load_data(anno_train_file_path)
+        item = random.choice(data_list)
+
+        random_factor = random.uniform(0.5, 1.5)
+        print('random factor:', random_factor)
+
+        file_path = item['file_path']
+        bounding_box = item['cords'][0]
+        label = item['cords'][1]  # TODO normalize
+        img = Image.open(file_path)
+        img = img.crop((bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))  # crop to bonding box
+        img_og = np.asarray(img, dtype=np.float32)
+        h, w, c = img_og.shape[0], img_og.shape[1], img_og.shape[2]
+        label = label.reshape(7, 2) - np.asarray([bounding_box[0], bounding_box[1]])
+        label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
+        img_rescale = img_og / 255 * 2 - 1
+
+        #plt.imshow(img, cmap='brg')
+        brightness = ImageEnhance.Brightness(img)
+
+        img = brightness.enhance(random_factor)
+        plt.imshow(img, cmap='brg')
+        plt.plot(label[:, 0] * h, label[:, 1] * h, color='green', marker='o',linestyle='none', markersize=12, label='Label')
+        #plt.plot(label[0, 0] * h, label[0, 1] * h, color='green', marker='o', linestyle='none', markersize=12, label='Label')
+        plt.title(random_factor)
+        plt.show()
+        self.assertEqual('foo'.upper(), 'FOO')
 
 
 if __name__ == '__main__':
