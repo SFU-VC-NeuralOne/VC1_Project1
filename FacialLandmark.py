@@ -36,19 +36,20 @@ def load_data(file_path):
         return data_list
 
 def calculate_corp(label, h, w):
-    label = label*h
+    #label = label*h
     pass_signal = False
 
     while (pass_signal == False):
         x_min = np.min(label[:, 0])
-        new_bounding_x1 = x_min * np.random.random(1)
+        new_bounding_x1 = x_min * np.random.randint(0, 500)/1000
         y_min = np.min(label[:, 1])
-        new_bounding_y1 = y_min * np.random.random(1)
+        new_bounding_y1 = y_min * np.random.randint(0, 500)/1000
 
         x_max = np.max(label[:, 0])
-        new_bounding_x2 = (w - x_max) * np.random.random(1) + x_max
+        new_bounding_x2 = (w - x_max) * np.random.randint(500, 1000)/1000 + x_max
         y_max = np.max(label[:, 1])
-        new_bounding_y2 = (w - y_max) * np.random.random(1) + y_max
+        new_bounding_y2 = (w - y_max) * np.random.randint(500, 1000)/1000 + y_max
+
 
         if ((new_bounding_x2-new_bounding_x1)>(new_bounding_y2 - new_bounding_y1)):
             new_height = new_bounding_y2 - new_bounding_y1
@@ -60,14 +61,14 @@ def calculate_corp(label, h, w):
         if ((new_bounding_x2 <= h) & (new_bounding_y2 <= h)):
             pass_signal = True
 
-    new_bb = [new_bounding_x1[0], new_bounding_y1[0], new_bounding_x2[0], new_bounding_y2[0] ]
+    new_bb = [new_bounding_x1, new_bounding_y1, new_bounding_x2, new_bounding_y2 ]
+
     #return new_bounding_x1, new_bounding_y1, new_bounding_x2, new_bounding_y2
     return new_bb
 
 
-def calculate_filp(label, h):
-    label = label * h
-    label[:,0] = h - label[:,0]
+def calculate_filp(label, w):
+    label[:,0] = w - label[:,0]
     # swap the following cords:
     # canthus_rr with canthus_ll
     # canthus_rl with canthus_lr
@@ -76,7 +77,7 @@ def calculate_filp(label, h):
     label[1, :], label[2, :] = label[2, :], label[1, :].copy()
     label[4, :], label[5, :] = label[5, :], label[4, :].copy()
 
-    return label/h
+    return label
 
 
 class LFWDataset(Dataset):
@@ -115,22 +116,22 @@ class LFWDataset(Dataset):
         img_array = np.asarray(img, dtype=np.float32)
         h, w, c = img_array.shape[0], img_array.shape[1], img_array.shape[2]
         label = label.reshape(7, 2) - np.asarray([bounding_box[0], bounding_box[1]])
-        label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
+
 
         if random_cropping:
             bounding_box = calculate_corp(label, h, w)
             img = img.crop((bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))
-            label = label*h - np.asarray([bounding_box[0], bounding_box[1]])
-            label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
+            label = label - np.asarray([bounding_box[0], bounding_box[1]])
 
         if horizontal_flipping:     # flipping
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
-            label = calculate_filp(label, h)
+            label = calculate_filp(label, w)
 
         if adjust_brightness:                                   # brightness change
             brightness = ImageEnhance.Brightness(img)
             img = brightness.enhance(random.uniform(0.5, 1.5)) #brighten the image between 0.5 to 1.5
 
+        label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
         img = img.resize((alexnet_input_size, alexnet_input_size))  # rezie to alexnet input size
         img= np.asarray(img, dtype=np.double)
 

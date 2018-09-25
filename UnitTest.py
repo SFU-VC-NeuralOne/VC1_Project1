@@ -30,25 +30,33 @@ class TestCropAugmentation(unittest.TestCase):
         img = Image.open(file_path)
         img = img.crop((bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))  # crop to bonding box
         img_og = np.asarray(img, dtype=np.float32)
-        h, w, c = img_og.shape[0], img_og.shape[1], img_og.shape[2]
         label = label.reshape(7, 2) - np.asarray([bounding_box[0], bounding_box[1]])
-        label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
+
+        h, w, c = img_og.shape[0], img_og.shape[1], img_og.shape[2]
+        plt.figure(1)
+        plt.imshow(img_og/255, cmap='brg')
+        plt.plot(label[:, 0], label[:, 1], color='green', marker='o', linestyle='none', markersize=5,label='Label')
+        print('original h w:', h, w)
+
         img_rescale = img_og / 255 * 2 - 1
         # plt.imshow(img, cmap='brg')
         # plt.plot(label[:, 0] * h, label[:, 1] * h, color='green', marker='o', linestyle='none', markersize=8,
         #          label='Label')
 
-        print('item :',item)
-        print('label:',label)
+        #print('item :',item)
+        #print('label:',label)
 
         bounding_box = fl.calculate_corp(label, h, w)
-        print('boudning box', bounding_box)
+        #print('boudning box', bounding_box)
         img1 = img.crop((bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))
         img1 = np.asarray(img1, dtype=np.float32)
-        new_h = img1.shape[0]
-        label = label*h - np.asarray([bounding_box[0], bounding_box[1]])
-        label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
-        print('new label:', label)
+        new_h, new_w = img1.shape[0], img1.shape[1]
+        label = label - np.asarray([bounding_box[0], bounding_box[1]])
+        plt.figure(2)
+        plt.imshow(img1 / 255, cmap='brg')
+        plt.plot(label[:, 0], label[:, 1], color='green', marker='o', linestyle='none', markersize=5, label='Label')
+        #label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
+        print('new h, w:', new_h, new_w)
 
 
         # fig, axs = plt.subplots(1, 3, figsize=(13, 6))
@@ -56,8 +64,6 @@ class TestCropAugmentation(unittest.TestCase):
         # axs[1].imshow(img.transpose(Image.FLIP_LEFT_RIGHT), cmap='brg')
         # axs[2].imshow(img1/255, cmap='brg')
 
-        plt.imshow(img1/255, cmap='brg')
-        plt.plot(label[:, 0]*new_h, label[:, 1]*new_h, color='green', marker='o', linestyle='none', markersize=5, label='Label')
 
 
 
