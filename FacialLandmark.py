@@ -14,7 +14,7 @@ import re
 lfw_dataset_dir = 'lfw'
 anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_train.txt')
 anno_test_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_test.txt')
-train_learning_rate = 0.0001
+train_learning_rate = 0.00001
 alexnet_input_size = 225
 Tuning = True
 
@@ -249,7 +249,7 @@ def main():
     # Create dataloaders for training and validation
     train_dataset = LFWDataset(train_set_list)
     train_data_loader = torch.utils.data.DataLoader(train_dataset,
-                                                    batch_size=128,
+                                                    batch_size=120,
                                                     shuffle=True,
                                                     num_workers=4)
     print('Total training items', len(train_dataset), ', Total training mini-batches in one epoch:',
