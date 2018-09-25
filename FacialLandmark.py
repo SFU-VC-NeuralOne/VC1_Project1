@@ -14,8 +14,9 @@ import re
 lfw_dataset_dir = 'lfw'
 anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_train.txt')
 anno_test_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_test.txt')
-train_learning_rate = 0.001
+train_learning_rate = 0.0001
 alexnet_input_size = 225
+Tuning = True
 
 def load_data(file_path):
     data_list = []
@@ -38,18 +39,17 @@ def load_data(file_path):
 def calculate_corp(label, h, w):
     #label = label*h
     pass_signal = False
-    count = 0
     while (pass_signal == False):
         x_min = np.min(label[:, 0])
-        new_bounding_x1 = x_min * np.random.randint(0, 500)/1000
+        temp = np.random.randint(0, 500)/1000
+        new_bounding_x1 = x_min * temp
         y_min = np.min(label[:, 1])
-        new_bounding_y1 = y_min * np.random.randint(0, 500)/1000
+        new_bounding_y1 = y_min * temp
 
         x_max = np.max(label[:, 0])
-        new_bounding_x2 = (w - x_max) * np.random.randint(500, 1000)/1000 + x_max
+        new_bounding_x2 = (w - x_max) * (1-temp) + x_max
         y_max = np.max(label[:, 1])
-        new_bounding_y2 = (w - y_max) * np.random.randint(500, 1000)/1000 + y_max
-
+        new_bounding_y2 = (w - y_max) * (1-temp) + y_max
 
         if ((new_bounding_x2-new_bounding_x1)>(new_bounding_y2 - new_bounding_y1)):
             new_height = new_bounding_x2 - new_bounding_x1
@@ -57,12 +57,10 @@ def calculate_corp(label, h, w):
         else:
             new_height = new_bounding_y2 - new_bounding_y1
             new_bounding_x2 = new_bounding_x1 + new_height
-        count=+1
         if ((new_bounding_x2 <= h) & (new_bounding_y2 <= h)):
             pass_signal = True
 
     new_bb = [new_bounding_x1, new_bounding_y1, new_bounding_x2, new_bounding_y2 ]
-    print('corp count:',count)
     #return new_bounding_x1, new_bounding_y1, new_bounding_x2, new_bounding_y2
     return new_bb
 
@@ -159,7 +157,7 @@ def train(net, train_data_loader, validation_data_loader):
     train_losses = []
     valid_losses = []
 
-    max_epochs = 1
+    max_epochs = 3
     itr = 0
 
     for epoch_idx in range(0, max_epochs):
@@ -265,9 +263,12 @@ def main():
     print('Total validation items:', len(validation_dataset))
 
     # TODO optional: visualize some data
-
-    # Train
     net = lfw_net()
+
+    if Tuning:
+        net_state = torch.load(os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
+        net.load_state_dict(net_state)
+    # Train
     train(net, train_data_loader, validation_data_loader)
     net_state = net.state_dict()  # serialize trained model
     torch.save(net_state, os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
