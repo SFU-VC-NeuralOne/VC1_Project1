@@ -34,9 +34,9 @@ class AlexNetModified(nn.Module):
             nn.Linear(256 * 6 * 6, 4096),
             nn.ReLU(inplace=True),
             nn.Dropout(),
-            nn.Linear(4096, 256),
+            nn.Linear(4096, 128),
             nn.ReLU(inplace=True),
-            nn.Linear(256, num_classes),
+            nn.Linear(128, num_classes),
         )
 
     def forward(self, x):
