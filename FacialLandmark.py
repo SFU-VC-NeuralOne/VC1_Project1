@@ -38,7 +38,7 @@ def load_data(file_path):
 def calculate_corp(label, h, w):
     #label = label*h
     pass_signal = False
-
+    count = 0
     while (pass_signal == False):
         x_min = np.min(label[:, 0])
         new_bounding_x1 = x_min * np.random.randint(0, 500)/1000
@@ -52,17 +52,17 @@ def calculate_corp(label, h, w):
 
 
         if ((new_bounding_x2-new_bounding_x1)>(new_bounding_y2 - new_bounding_y1)):
+            new_height = new_bounding_x2 - new_bounding_x1
+            new_bounding_y2 = new_bounding_y1 + new_height
+        else:
             new_height = new_bounding_y2 - new_bounding_y1
             new_bounding_x2 = new_bounding_x1 + new_height
-        else:
-            new_height = new_bounding_x2-new_bounding_x1
-            new_bounding_y2 = new_bounding_y1 + new_height
-
+        count=+1
         if ((new_bounding_x2 <= h) & (new_bounding_y2 <= h)):
             pass_signal = True
 
     new_bb = [new_bounding_x1, new_bounding_y1, new_bounding_x2, new_bounding_y2 ]
-
+    print('corp count:',count)
     #return new_bounding_x1, new_bounding_y1, new_bounding_x2, new_bounding_y2
     return new_bb
 
@@ -198,9 +198,9 @@ def train(net, train_data_loader, validation_data_loader):
                     valid_loss_set.append(valid_loss.item())
 
 
-                    # valid_itr += 1
-                    # if valid_itr > 5:
-                    #     break
+                    valid_itr += 1
+                    if valid_itr > 5:
+                        break
 
                 # Compute the avg. validation loss
                 avg_valid_loss = np.mean(np.asarray(valid_loss_set))
@@ -253,7 +253,7 @@ def main():
     train_data_loader = torch.utils.data.DataLoader(train_dataset,
                                                     batch_size=128,
                                                     shuffle=True,
-                                                    num_workers=6)
+                                                    num_workers=4)
     print('Total training items', len(train_dataset), ', Total training mini-batches in one epoch:',
           len(train_data_loader))
 
@@ -261,7 +261,7 @@ def main():
     validation_data_loader = torch.utils.data.DataLoader(validation_dataset,
                                                          batch_size=32,
                                                          shuffle=True,
-                                                         num_workers=6)
+                                                         num_workers=4)
     print('Total validation items:', len(validation_dataset))
 
     # TODO optional: visualize some data
