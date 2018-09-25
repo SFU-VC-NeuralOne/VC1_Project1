@@ -218,19 +218,33 @@ def train(net, train_data_loader, validation_data_loader):
 def test(net, test_set_list):
     net.cuda()
     net.eval()
-    test_item = random.choice(test_set_list)
-    test_img_path = os.path.join(lfw_dataset_dir, test_item['file_path'])
-    img = np.asarray(Image.open(test_img_path), dtype=np.float32) / 255.0   # TODO rescale to (-1, 1)
-    c, h, w = img.shape[0], img.shape[1], img.shape[2]
-    img_tensor = torch.from_numpy(img)
-    img_tensor = img_tensor.view((1, c, h, w))
+    anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_test.txt')
+    data_list = load_data(anno_train_file_path)
+    l2_distance_list = []
+    for item in data_list:
+        file_path = item['file_path']
+        bounding_box = item['cords'][0]
+        label = item['cords'][1]
+        label = label.reshape(7, 2) - np.asarray([bounding_box[0], bounding_box[1]])
+        label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
 
-    prediction = net.forward(img_tensor.cuda())
-    prob_max = torch.argmax(prediction.detach(), dim=1)
+        img = Image.open(file_path)
+        img = img.crop((bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))  # crop to bonding box
+        img = img.resize((alexnet_input_size, alexnet_input_size))  # rezie to alexnet input size
+        img = np.asarray(img, dtype=np.float32)
 
-    # Show the result TODO plot the landmarks
+        h, w, c = img.shape[0], img.shape[1], img.shape[2]
+        img = img / 255 * 2 - 1
+        img_tensor = torch.from_numpy(img)
+        img_tensor = img_tensor.view(1, c, h, w)
+
+        prediction = net.forward(img_tensor)
+        pred_label = prediction.cpu().detach().numpy().reshape(7, 2)
+        l2_distance = np.linalg.norm((pred_label - label), axis=1)
+        l2_distance = np.average(l2_distance)
+        l2_distance_list.append(l2_distance)
+
     plt.imshow(img)
-    plt.title("Label %d" % (prob_max.item()))
     plt.show()
 
 
