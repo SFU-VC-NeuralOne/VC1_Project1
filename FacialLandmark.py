@@ -152,6 +152,9 @@ class LFWDataset(Dataset):
 def train(net, train_data_loader, validation_data_loader):
     net.cuda()
     criterion = torch.nn.MSELoss()
+    for params in net.features.parameters():
+        params.requires_grad = False
+
     optimizer = torch.optim.Adam(net.parameters(), lr=train_learning_rate)
 
     train_losses = []
@@ -160,11 +163,7 @@ def train(net, train_data_loader, validation_data_loader):
     max_epochs = 3
     itr = 0
 
-    count = 0
-    for params in net.parameters():
-        count += 1
-        if count < 10:
-            params.requires_grad = False
+
 
     for epoch_idx in range(0, max_epochs):
         for train_batch_idx, (train_input, train_label) in enumerate(train_data_loader):
