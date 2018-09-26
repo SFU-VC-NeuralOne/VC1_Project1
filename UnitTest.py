@@ -143,7 +143,6 @@ class TestRandomImage(unittest.TestCase):
         data_list = fl.load_data(anno_train_file_path)
         l2_distance_list = []
         item = random.choice(data_list)
-        print(test_net)
         file_path = item['file_path']
         bounding_box = item['cords'][0]
         label = item['cords'][1]
@@ -188,7 +187,7 @@ class TestAccuracy(unittest.TestCase):
         data_list = fl.load_data(anno_train_file_path)
         l2_distance_list = []
         accuracy_plot = []
-        for item in data_list[0:100]:
+        for item in data_list[0:200]:
             file_path = item['file_path']
             bounding_box = item['cords'][0]
             label = item['cords'][1]
@@ -223,5 +222,19 @@ class TestAccuracy(unittest.TestCase):
                  np.asarray(accuracy_plot[:,1]))
         plt.show()
 
+class TestNN(unittest.TestCase):
+
+    def test_NN(self):
+        lfw_dataset_dir = 'lfw'
+        test_net = lfw_net()
+        count = 0
+        for params in test_net.parameters():
+            count += 1
+            if count<10:
+                params.requires_grad = False
+            print(params.cpu().detach().numpy().shape)
+
+        print(count)
+        print(1e-6 - 0.000001)
 if __name__ == '__main__':
     unittest.main()

@@ -14,7 +14,7 @@ import re
 lfw_dataset_dir = 'lfw'
 anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_train.txt')
 anno_test_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_test.txt')
-train_learning_rate = 0.00001
+train_learning_rate = 1e-5
 alexnet_input_size = 225
 Tuning = True
 
@@ -160,6 +160,12 @@ def train(net, train_data_loader, validation_data_loader):
     max_epochs = 3
     itr = 0
 
+    count = 0
+    for params in net.parameters():
+        count += 1
+        if count < 10:
+            params.requires_grad = False
+
     for epoch_idx in range(0, max_epochs):
         for train_batch_idx, (train_input, train_label) in enumerate(train_data_loader):
             itr += 1
@@ -222,7 +228,7 @@ def test(net, test_set_list):
     data_list = load_data(anno_train_file_path)
     l2_distance_list = []
     accuracy_plot = []
-    for item in data_list[0:100]:
+    for item in data_list:
         file_path = item['file_path']
         bounding_box = item['cords'][0]
         label = item['cords'][1]
