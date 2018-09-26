@@ -13,7 +13,7 @@ lfw_dataset_dir = 'lfw'
 anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_train.txt')
 anno_test_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_test.txt')
 train_learning_rate = 0.000000005
-training_mode = True
+training_mode = False
 improve_model = True
 alexnet_input_size = 225
 
