@@ -221,7 +221,8 @@ def test(net, test_set_list):
     anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_test.txt')
     data_list = load_data(anno_train_file_path)
     l2_distance_list = []
-    for item in data_list:
+    accuracy_plot = []
+    for item in data_list[0:100]:
         file_path = item['file_path']
         bounding_box = item['cords'][0]
         label = item['cords'][1]
@@ -230,7 +231,7 @@ def test(net, test_set_list):
 
         img = Image.open(file_path)
         img = img.crop((bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))  # crop to bonding box
-        img = img.resize((alexnet_input_size, alexnet_input_size))  # rezie to alexnet input size
+        img = img.resize((225, 225))  # rezie to alexnet input size
         img = np.asarray(img, dtype=np.float32)
 
         h, w, c = img.shape[0], img.shape[1], img.shape[2]
@@ -244,7 +245,16 @@ def test(net, test_set_list):
         l2_distance = np.average(l2_distance)
         l2_distance_list.append(l2_distance)
 
-    plt.imshow(img)
+    print('l2 distance', l2_distance_list)
+    l2_distance_list.sort()
+    print('l2 ordered', l2_distance_list)
+    for idx in range(0, len(l2_distance_list)):
+        accuracy_plot.append([l2_distance_list[idx], idx / len(l2_distance_list)])
+    print(accuracy_plot)
+    accuracy_plot = np.asarray(accuracy_plot)
+    print(accuracy_plot)
+    plt.plot(np.asarray(accuracy_plot[:, 0]),
+             np.asarray(accuracy_plot[:, 1]))
     plt.show()
 
 
@@ -276,7 +286,6 @@ def main():
                                                          num_workers=4)
     print('Total validation items:', len(validation_dataset))
 
-    # TODO optional: visualize some data
     net = lfw_net()
 
     if Tuning:
@@ -292,8 +301,7 @@ def main():
     test_net_state = torch.load(os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
     test_net.load_state_dict(test_net_state)
 
-    # TODO allow keyboard input to trigger test()
-    #test(test_net, test_set_list)
+    test(test_net, test_set_list)
 
 
 if __name__ == '__main__':

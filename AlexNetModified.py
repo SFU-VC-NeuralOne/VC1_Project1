@@ -31,10 +31,10 @@ class AlexNetModified(nn.Module):
         )
         self.classifier_modified = nn.Sequential(
             nn.Dropout(),
-            nn.Linear(256 * 6 * 6, 4096),
+            nn.Linear(256 * 6 * 6, 1024),
             nn.ReLU(inplace=True),
             nn.Dropout(),
-            nn.Linear(4096, 128),
+            nn.Linear(1024, 128),
             nn.ReLU(inplace=True),
             nn.Linear(128, num_classes),
         )
