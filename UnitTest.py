@@ -185,9 +185,9 @@ class TestAccuracy(unittest.TestCase):
         test_net.load_state_dict(test_net_state)
         anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_test.txt')
         data_list = fl.load_data(anno_train_file_path)
-        l2_distance_list = []
-        accuracy_plot = []
-        for item in data_list[:10]:
+        l2_distance_list = [[],[],[],[],[],[],[],[]]
+        accuracy_plot = [[],[],[],[],[],[],[],[]]
+        for item in data_list:
             file_path = item['file_path']
             bounding_box = item['cords'][0]
             label = item['cords'][1]
@@ -210,23 +210,41 @@ class TestAccuracy(unittest.TestCase):
             l2_distance_ave = np.average(l2_distance)
             l2_distance_list[0].append(l2_distance_ave)
 
-            for i in range(1,7):
-                l2_distance_list[i].append(l2_distance[i])
+            for i in range(1,8):
+                #print(l2_distance_list)
+                l2_distance_list[i].append(l2_distance[i-1])
 
         print('l2 distance', l2_distance_list)
+        # print(l2_distance_list.shape)
+        l2_distance_list = np.asarray(l2_distance_list,dtype=np.float32)
+
         l2_distance_list.sort()
         print('l2 ordered', l2_distance_list)
-        # for idx in range (0, len(l2_distance_list)):
-        #     accuracy_plot.append([l2_distance_list[idx], idx/len(l2_distance_list)])
-        # print(accuracy_plot)
-        # accuracy_plot = np.asarray(accuracy_plot)
-        # print(accuracy_plot)
-        # plt.plot(np.asarray(accuracy_plot[:,0]*225),
-        #          np.asarray(accuracy_plot[:,1]*100), color='blue', markersize=2)
-        # plt.xlabel('Radius')
-        # plt.ylabel('Detected Ratio %')
-        # plt.title("Avg. Percentage of Detected Key-points")
-        # plt.show()
+        print(l2_distance_list[0])
+        for big_idx in range (0, 8):
+            for idx in range (0, len(l2_distance_list[0])):
+                accuracy_plot[big_idx].append([l2_distance_list[big_idx][idx], idx/len(l2_distance_list[0])])
+                print('acc', accuracy_plot)
+
+        accuracy_plot = np.asarray(accuracy_plot)
+        plt.plot(np.asarray(accuracy_plot[1][:,0]*225), np.asarray(accuracy_plot[0][:,1]*100), markersize=2, label='canthus_rr')
+        plt.plot(np.asarray(accuracy_plot[2][:,0]*225), np.asarray(accuracy_plot[0][:,1]*100), markersize=2, label='canthus_rl')
+        plt.plot(np.asarray(accuracy_plot[3][:,0]*225), np.asarray(accuracy_plot[0][:,1]*100), markersize=2, label='canthus_lr')
+        plt.plot(np.asarray(accuracy_plot[4][:, 0] * 225), np.asarray(accuracy_plot[0][:, 1] * 100), markersize=2,
+                 label='canthus_ll')
+        plt.plot(np.asarray(accuracy_plot[5][:, 0] * 225), np.asarray(accuracy_plot[0][:, 1] * 100), markersize=2,
+                 label='mouth_corner_r')
+        plt.plot(np.asarray(accuracy_plot[6][:, 0] * 225), np.asarray(accuracy_plot[0][:, 1] * 100), markersize=2,
+                 label='mouth_corner_l')
+        plt.plot(np.asarray(accuracy_plot[7][:, 0] * 225), np.asarray(accuracy_plot[0][:, 1] * 100), markersize=2,
+                 label='nose')
+
+
+        plt.xlabel('Radius')
+        plt.ylabel('Detected Ratio %')
+        plt.title("Avg. Percentage of Detected Key-points")
+        plt.legend()
+        plt.show()
 
 class TestNN(unittest.TestCase):
 
