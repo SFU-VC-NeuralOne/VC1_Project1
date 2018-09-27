@@ -173,7 +173,7 @@ class TestRandomImage(unittest.TestCase):
         plt.imshow((img + 1) / 2, cmap='brg')
         plt.plot(pred_label[:, 0] * h, pred_label[:, 1] * h, color='green', marker='o', linestyle='none', markersize=5, label='Prediction')
         plt.plot(label[:, 0]*h, label[:, 1]*h, color='blue', marker='o', linestyle='none', markersize=5, label='Ground Truth')
-
+        plt.title(pred_label*225)
         plt.show()
 
 class TestAccuracy(unittest.TestCase):
@@ -187,7 +187,7 @@ class TestAccuracy(unittest.TestCase):
         data_list = fl.load_data(anno_train_file_path)
         l2_distance_list = []
         accuracy_plot = []
-        for item in data_list[0:200]:
+        for item in data_list:
             file_path = item['file_path']
             bounding_box = item['cords'][0]
             label = item['cords'][1]
@@ -218,8 +218,11 @@ class TestAccuracy(unittest.TestCase):
         print(accuracy_plot)
         accuracy_plot = np.asarray(accuracy_plot)
         print(accuracy_plot)
-        plt.plot(np.asarray(accuracy_plot[:,0]),
-                 np.asarray(accuracy_plot[:,1]))
+        plt.plot(np.asarray(accuracy_plot[:,0]*225),
+                 np.asarray(accuracy_plot[:,1]*100), color='red')
+        plt.xlabel('Radius')
+        plt.ylabel('Detected Ratio %')
+        plt.title("Avg. Percentage of Detected Key-points")
         plt.show()
 
 class TestNN(unittest.TestCase):

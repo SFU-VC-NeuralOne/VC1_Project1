@@ -14,9 +14,9 @@ import re
 lfw_dataset_dir = 'lfw'
 anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_train.txt')
 anno_test_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_test.txt')
-train_learning_rate = 1e-5
+train_learning_rate = 1e-4
 alexnet_input_size = 225
-Tuning = True
+Tuning = False
 
 def load_data(file_path):
     data_list = []
@@ -84,7 +84,7 @@ class LFWDataset(Dataset):
         self.data_list = data_list
 
     def __len__(self):
-        return len(self.data_list) * 4  # original + cropping + flipping + brightness change
+        return len(self.data_list) * 5  # original + cropping + flipping + brightness change
 
     def __getitem__(self, idx):
         original_length = len(self.data_list)
@@ -104,7 +104,8 @@ class LFWDataset(Dataset):
             [False, True, False],
             [False, False, False]
         ]
-        random_cropping, horizontal_flipping, adjust_brightness = random.choice(data_augmentation_choices)
+        random_cropping, horizontal_flipping, adjust_brightness = random.choice(data_augmentation_choices) \
+            if idx >= original_length else [False, False, False]
 
         #     img_tensor = torch.from_numpy(img)
         #     img_tensor = img_tensor.view((1, c, h, w))
@@ -160,7 +161,7 @@ def train(net, train_data_loader, validation_data_loader):
     train_losses = []
     valid_losses = []
 
-    max_epochs = 3
+    max_epochs = 10
     itr = 0
 
 
