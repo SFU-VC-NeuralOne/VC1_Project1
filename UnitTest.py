@@ -187,7 +187,7 @@ class TestAccuracy(unittest.TestCase):
         data_list = fl.load_data(anno_train_file_path)
         l2_distance_list = []
         accuracy_plot = []
-        for item in data_list:
+        for item in data_list[:10]:
             file_path = item['file_path']
             bounding_box = item['cords'][0]
             label = item['cords'][1]
@@ -207,23 +207,26 @@ class TestAccuracy(unittest.TestCase):
             prediction = test_net.forward(img_tensor)
             pred_label = prediction.cpu().detach().numpy().reshape(7, 2)
             l2_distance = np.linalg.norm((pred_label - label), axis=1)
-            l2_distance = np.average(l2_distance)
-            l2_distance_list.append(l2_distance)
+            l2_distance_ave = np.average(l2_distance)
+            l2_distance_list[0].append(l2_distance_ave)
+
+            for i in range(1,7):
+                l2_distance_list[i].append(l2_distance[i])
 
         print('l2 distance', l2_distance_list)
         l2_distance_list.sort()
         print('l2 ordered', l2_distance_list)
-        for idx in range (0, len(l2_distance_list)):
-            accuracy_plot.append([l2_distance_list[idx], idx/len(l2_distance_list)])
-        print(accuracy_plot)
-        accuracy_plot = np.asarray(accuracy_plot)
-        print(accuracy_plot)
-        plt.plot(np.asarray(accuracy_plot[:,0]*225),
-                 np.asarray(accuracy_plot[:,1]*100), color='red')
-        plt.xlabel('Radius')
-        plt.ylabel('Detected Ratio %')
-        plt.title("Avg. Percentage of Detected Key-points")
-        plt.show()
+        # for idx in range (0, len(l2_distance_list)):
+        #     accuracy_plot.append([l2_distance_list[idx], idx/len(l2_distance_list)])
+        # print(accuracy_plot)
+        # accuracy_plot = np.asarray(accuracy_plot)
+        # print(accuracy_plot)
+        # plt.plot(np.asarray(accuracy_plot[:,0]*225),
+        #          np.asarray(accuracy_plot[:,1]*100), color='blue', markersize=2)
+        # plt.xlabel('Radius')
+        # plt.ylabel('Detected Ratio %')
+        # plt.title("Avg. Percentage of Detected Key-points")
+        # plt.show()
 
 class TestNN(unittest.TestCase):
 
