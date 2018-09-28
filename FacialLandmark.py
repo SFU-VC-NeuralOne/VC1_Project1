@@ -12,7 +12,7 @@ import re
 lfw_dataset_dir = 'lfw'
 anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_train.txt')
 anno_test_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_test.txt')
-train_learning_rate = 0.000000005
+train_learning_rate = 0.000000001
 training_mode = False
 improve_model = True
 alexnet_input_size = 225
@@ -118,6 +118,7 @@ class LFWDataset(Dataset):
         # resize and normalize pixel values to [-1, 1]
         img = img.resize((alexnet_input_size, alexnet_input_size))
 
+        # Below is debug code to test data augmentation results
         # plt.imshow(img)
         # labels = ['canthus_rr', 'canthus_rl', 'canthus_lr', 'canthus_ll', 'mouth_corner_r', 'mouth_corner_l', 'nose']
         # colors = ['b', 'g', 'r', 'c', 'm', 'y', 'w']
@@ -136,13 +137,6 @@ class LFWDataset(Dataset):
         img_tensor = img_tensor.view(c, h, w)
         label_tensor = torch.from_numpy(label.ravel())
 
-        # z, x, y = img_tensor.shape[0], img_tensor.shape[1], img_tensor.shape[2]
-        # img_tensor = img_tensor.view(x, y, z)
-        # img = img_tensor.cpu().numpy()
-        # img = (img + 1) / 2
-        # plt.imshow(img, cmap='brg')
-        # plt.show()
-
         return img_tensor, label_tensor
 
 
@@ -154,7 +148,7 @@ def train(net, train_data_loader, validation_data_loader):
     train_losses = []
     valid_losses = []
 
-    max_epochs = 5
+    max_epochs = 2
     itr = 0
 
     for epoch_idx in range(0, max_epochs):
@@ -225,11 +219,35 @@ def run_test_set(net, test_data_loader):
     distances = np.asarray(distances)
     plt.xlabel('Radius')
     plt.ylabel('Detected Ratio %')
-    plt.title("Avg. Percentage of Detected Key-points")
-    for i in range(1500):
-        radius = i / 30
+    plt.title('Avg. Percentage of Detected Key-points for All Features')
+    for i in range(400):
+        radius = i / 10
         accuracy = (distances < radius).sum() / np.size(distances)
         plt.plot(radius, accuracy * 100, color='red', marker='o', markersize=2)
+    plt.show()
+
+    feature_names = ['canthus_rr', 'canthus_rl', 'canthus_lr', 'canthus_ll', 'mouth_corner_r', 'mouth_corner_l', 'nose']
+    colors = ['b', 'g', 'r', 'c', 'm', 'y', 'silver']
+
+    plot_points_x = []
+    plot_points_y = []
+
+    plt.xlabel('Radius')
+    plt.ylabel('Detected Ratio %')
+    plt.title('Avg. Percentage of Detected Key-points for Each Feature')
+    for i in range(len(feature_names)):
+        feature_distance = distances[:, i:i+1]
+        plot_points_x.clear()
+        plot_points_y.clear()
+        for j in range(400):
+            radius = j / 10.0
+            accuracy = (feature_distance < radius).sum() / np.size(feature_distance)
+            plot_points_x.append(radius)
+            plot_points_y.append(accuracy * 100)
+        plt.plot(plot_points_x, plot_points_y, color=colors[i], marker='o', markersize=1, label=feature_names[i])
+
+    plt.axis([0, 40, 0, 100])
+    plt.legend()
     plt.show()
 
 
@@ -277,7 +295,7 @@ def main():
         # Create dataloaders for training and validation
         train_dataset = LFWDataset(train_set_list, augment_data=True)
         train_data_loader = torch.utils.data.DataLoader(train_dataset,
-                                                        batch_size=350,
+                                                        batch_size=128,
                                                         shuffle=True,
                                                         num_workers=6)
         print('Total training items', len(train_dataset), ', Total training mini-batches in one epoch:',
