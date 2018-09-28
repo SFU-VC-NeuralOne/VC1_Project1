@@ -220,50 +220,6 @@ def train(net, train_data_loader, validation_data_loader):
              valid_losses[:, 1])  # loss value
     plt.show()
 
-
-def test(net, test_set_list):
-    net.cuda()
-    net.eval()
-    anno_train_file_path = os.path.join(lfw_dataset_dir, 'LFW_annotation_test.txt')
-    data_list = load_data(anno_train_file_path)
-    l2_distance_list = []
-    accuracy_plot = []
-    for item in data_list:
-        file_path = item['file_path']
-        bounding_box = item['cords'][0]
-        label = item['cords'][1]
-        label = label.reshape(7, 2) - np.asarray([bounding_box[0], bounding_box[1]])
-        label = label / np.asarray([(bounding_box[2] - bounding_box[0]), (bounding_box[3] - bounding_box[1])])
-
-        img = Image.open(file_path)
-        img = img.crop((bounding_box[0], bounding_box[1], bounding_box[2], bounding_box[3]))  # crop to bonding box
-        img = img.resize((225, 225))  # rezie to alexnet input size
-        img = np.asarray(img, dtype=np.float32)
-
-        h, w, c = img.shape[0], img.shape[1], img.shape[2]
-        img = img / 255 * 2 - 1
-        img_tensor = torch.from_numpy(img)
-        img_tensor = img_tensor.view(1, c, h, w)
-
-        prediction = net.forward(img_tensor)
-        pred_label = prediction.cpu().detach().numpy().reshape(7, 2)
-        l2_distance = np.linalg.norm((pred_label - label), axis=1)
-        l2_distance = np.average(l2_distance)
-        l2_distance_list.append(l2_distance)
-
-    print('l2 distance', l2_distance_list)
-    l2_distance_list.sort()
-    print('l2 ordered', l2_distance_list)
-    for idx in range(0, len(l2_distance_list)):
-        accuracy_plot.append([l2_distance_list[idx], idx / len(l2_distance_list)])
-    print(accuracy_plot)
-    accuracy_plot = np.asarray(accuracy_plot)
-    print(accuracy_plot)
-    plt.plot(np.asarray(accuracy_plot[:, 0]),
-             np.asarray(accuracy_plot[:, 1]))
-    plt.show()
-
-
 def main():
     torch.set_default_tensor_type('torch.cuda.DoubleTensor')
     data_list = load_data(anno_train_file_path)
@@ -302,12 +258,6 @@ def main():
     net_state = net.state_dict()  # serialize trained model
     torch.save(net_state, os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
 
-    # Test
-    test_net = lfw_net()
-    test_net_state = torch.load(os.path.join(lfw_dataset_dir, 'lfw_net.pth'))
-    test_net.load_state_dict(test_net_state)
-
-    test(test_net, test_set_list)
 
 
 if __name__ == '__main__':
